@@ -1,5 +1,5 @@
-import * as gettextParser from 'gettext-parser';
-import type { POTranslation, POData } from 'gettext-parser';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const gettextParser = require('gettext-parser');
 
 export interface POEntry {
   msgid: string;
@@ -15,18 +15,25 @@ export interface POEntry {
   };
 }
 
+interface RawPOEntry {
+  msgid: string;
+  msgid_plural?: string;
+  msgstr: string | string[];
+  msgctxt?: string;
+  comments?: POEntry['comments'];
+}
+
 export interface POFile {
   charset: string;
   headers: Record<string, string>;
-  translations: Record<string, Record<string, POTranslation>>;
+  translations: Record<string, Record<string, RawPOEntry>>;
 }
 
 export function parsePOFile(buffer: Buffer): POFile {
-  const parsed = gettextParser.po.parse(buffer);
-  return parsed as POFile;
+  return gettextParser.po.parse(buffer) as POFile;
 }
 
-export function compilePOFile(data: POData): Buffer {
+export function compilePOFile(data: POFile): Buffer {
   return gettextParser.po.compile(data);
 }
 
