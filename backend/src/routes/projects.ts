@@ -9,10 +9,13 @@ type ProjectWithCount = Project & { _count: { entries: number } };
 
 export const projectRoutes = Router();
 
-// Get all projects
+// Get all projects for current user
 projectRoutes.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
+
     const projects = await prisma.project.findMany({
+      where: { userId },
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: {
@@ -40,11 +43,13 @@ projectRoutes.get('/', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-// Get single project
+// Get single project (only if owned by user)
 projectRoutes.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id },
+    const userId = req.userId!;
+
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.id, userId },
       include: {
         entries: {
           orderBy: { createdAt: 'asc' },
@@ -65,6 +70,8 @@ projectRoutes.get('/:id', async (req: Request, res: Response, next: NextFunction
 // Upload and create project from PO file
 projectRoutes.post('/upload', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
+
     if (!req.files || !req.files.file) {
       throw new AppError('No file uploaded', 400);
     }
@@ -78,6 +85,7 @@ projectRoutes.post('/upload', async (req: Request, res: Response, next: NextFunc
 
     const project = await prisma.project.create({
       data: {
+        userId,
         name: projectName,
         filename: file.name,
         language,
@@ -106,11 +114,13 @@ projectRoutes.post('/upload', async (req: Request, res: Response, next: NextFunc
   }
 });
 
-// Export project to PO file
+// Export project to PO file (only if owned by user)
 projectRoutes.get('/:id/export', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id },
+    const userId = req.userId!;
+
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.id, userId },
       include: {
         entries: {
           orderBy: { createdAt: 'asc' },
@@ -150,9 +160,19 @@ projectRoutes.get('/:id/export', async (req: Request, res: Response, next: NextF
   }
 });
 
-// Delete project
+// Delete project (only if owned by user)
 projectRoutes.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
+
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.id, userId },
+    });
+
+    if (!project) {
+      throw new AppError('Project not found', 404);
+    }
+
     await prisma.project.delete({
       where: { id: req.params.id },
     });
@@ -163,10 +183,19 @@ projectRoutes.delete('/:id', async (req: Request, res: Response, next: NextFunct
   }
 });
 
-// Update project metadata
+// Update project metadata (only if owned by user)
 projectRoutes.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
     const { name, language } = req.body;
+
+    const existingProject = await prisma.project.findFirst({
+      where: { id: req.params.id, userId },
+    });
+
+    if (!existingProject) {
+      throw new AppError('Project not found', 404);
+    }
 
     const project = await prisma.project.update({
       where: { id: req.params.id },

@@ -1,62 +1,58 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import type { Settings } from '@prisma/client';
 import { prisma } from '../utils/db';
-import { resetOpenAIClient } from '../services/openai';
 import { AppError } from '../middleware/errorHandler';
 
 export const settingsRoutes = Router();
 
-// Get all settings (without exposing full API key)
+// Get user settings
 settingsRoutes.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const settings = await prisma.settings.findMany();
+    const userId = req.userId!;
 
-    const safeSettings = settings.map((s: Settings) => {
-      if (s.key === 'openai_api_key' && s.value) {
-        return {
-          ...s,
-          value: s.value.substring(0, 7) + '...' + s.value.substring(s.value.length - 4),
-        };
-      }
-      return s;
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
     });
 
-    res.json(safeSettings);
+    if (!settings) {
+      return res.json({
+        openaiApiKey: null,
+        openaiApiKeyConfigured: false,
+      });
+    }
+
+    res.json({
+      openaiApiKey: settings.openaiApiKey
+        ? settings.openaiApiKey.substring(0, 7) + '...' + settings.openaiApiKey.substring(settings.openaiApiKey.length - 4)
+        : null,
+      openaiApiKeyConfigured: !!settings.openaiApiKey,
+    });
   } catch (error) {
     next(error);
   }
 });
 
-// Update a setting
-settingsRoutes.put('/:key', async (req: Request, res: Response, next: NextFunction) => {
+// Update OpenAI API key
+settingsRoutes.put('/openai-api-key', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { key } = req.params;
+    const userId = req.userId!;
     const { value } = req.body;
 
     if (value === undefined) {
       throw new AppError('value is required', 400);
     }
 
-    const setting = await prisma.settings.upsert({
-      where: { key },
-      update: { value },
-      create: { key, value },
+    const settings = await prisma.userSettings.upsert({
+      where: { userId },
+      update: { openaiApiKey: value || null },
+      create: { userId, openaiApiKey: value || null },
     });
 
-    // Reset OpenAI client if API key was updated
-    if (key === 'openai_api_key') {
-      resetOpenAIClient();
-    }
-
-    // Return safe version
-    if (key === 'openai_api_key' && value) {
-      return res.json({
-        ...setting,
-        value: value.substring(0, 7) + '...' + value.substring(value.length - 4),
-      });
-    }
-
-    res.json(setting);
+    res.json({
+      openaiApiKey: settings.openaiApiKey
+        ? settings.openaiApiKey.substring(0, 7) + '...' + settings.openaiApiKey.substring(settings.openaiApiKey.length - 4)
+        : null,
+      openaiApiKeyConfigured: !!settings.openaiApiKey,
+    });
   } catch (error) {
     next(error);
   }
@@ -65,15 +61,15 @@ settingsRoutes.put('/:key', async (req: Request, res: Response, next: NextFuncti
 // Check if API key is configured
 settingsRoutes.get('/api-key-status', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const setting = await prisma.settings.findUnique({
-      where: { key: 'openai_api_key' },
+    const userId = req.userId!;
+
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
     });
 
-    const envKey = process.env.OPENAI_API_KEY;
-
     res.json({
-      configured: !!(setting?.value || envKey),
-      source: setting?.value ? 'database' : envKey ? 'environment' : 'none',
+      configured: !!settings?.openaiApiKey,
+      source: settings?.openaiApiKey ? 'user' : 'none',
     });
   } catch (error) {
     next(error);

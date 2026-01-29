@@ -1,27 +1,19 @@
 import OpenAI from 'openai';
 import { prisma } from '../utils/db';
 
-let openaiClient: OpenAI | null = null;
-
-export async function getOpenAIClient(): Promise<OpenAI> {
-  if (openaiClient) return openaiClient;
-
-  const setting = await prisma.settings.findUnique({
-    where: { key: 'openai_api_key' },
+// Get OpenAI client for a specific user
+export async function getOpenAIClientForUser(userId: string): Promise<OpenAI> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
   });
 
-  const apiKey = setting?.value || process.env.OPENAI_API_KEY;
+  const apiKey = settings?.openaiApiKey;
 
   if (!apiKey) {
-    throw new Error('OpenAI API key not configured');
+    throw new Error('OpenAI API key not configured. Please add your API key in Settings.');
   }
 
-  openaiClient = new OpenAI({ apiKey });
-  return openaiClient;
-}
-
-export function resetOpenAIClient() {
-  openaiClient = null;
+  return new OpenAI({ apiKey });
 }
 
 export interface TranslateOptions {
@@ -29,10 +21,11 @@ export interface TranslateOptions {
   targetLanguage: string;
   context?: string;
   sourceLanguage?: string;
+  userId: string;
 }
 
 export async function translateText(options: TranslateOptions): Promise<string> {
-  const client = await getOpenAIClient();
+  const client = await getOpenAIClientForUser(options.userId);
   const { text, targetLanguage, context, sourceLanguage } = options;
 
   const systemPrompt = `You are a professional translator for software localization. Translate the following text to ${targetLanguage}.
@@ -134,7 +127,8 @@ function matchFormatting(original: string, translation: string): string {
 
 export async function translateBatch(
   entries: { id: string; text: string; context?: string }[],
-  targetLanguage: string
+  targetLanguage: string,
+  userId: string
 ): Promise<{ id: string; translation: string }[]> {
   const results = await Promise.all(
     entries.map(async (entry) => {
@@ -143,6 +137,7 @@ export async function translateBatch(
           text: entry.text,
           targetLanguage,
           context: entry.context,
+          userId,
         });
         return { id: entry.id, translation };
       } catch (error) {

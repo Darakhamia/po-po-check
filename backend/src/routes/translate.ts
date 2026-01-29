@@ -9,6 +9,7 @@ export const translateRoutes = Router();
 // Translate a single entry
 translateRoutes.post('/single', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
     const { entryId, targetLanguage } = req.body;
 
     if (!entryId || !targetLanguage) {
@@ -17,9 +18,10 @@ translateRoutes.post('/single', async (req: Request, res: Response, next: NextFu
 
     const entry = await prisma.entry.findUnique({
       where: { id: entryId },
+      include: { project: true },
     });
 
-    if (!entry) {
+    if (!entry || entry.project.userId !== userId) {
       throw new AppError('Entry not found', 404);
     }
 
@@ -27,6 +29,7 @@ translateRoutes.post('/single', async (req: Request, res: Response, next: NextFu
       text: entry.msgid,
       targetLanguage,
       context: entry.msgctxt || undefined,
+      userId,
     });
 
     // Save history
@@ -63,6 +66,7 @@ translateRoutes.post('/single', async (req: Request, res: Response, next: NextFu
 // Translate multiple entries
 translateRoutes.post('/batch', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
     const { entryIds, targetLanguage } = req.body;
 
     if (!Array.isArray(entryIds) || !targetLanguage) {
@@ -71,25 +75,29 @@ translateRoutes.post('/batch', async (req: Request, res: Response, next: NextFun
 
     const entries = await prisma.entry.findMany({
       where: { id: { in: entryIds } },
+      include: { project: true },
     });
 
-    if (entries.length === 0) {
+    // Filter only entries owned by user
+    const userEntries = entries.filter((e) => e.project.userId === userId);
+
+    if (userEntries.length === 0) {
       throw new AppError('No entries found', 404);
     }
 
-    const toTranslate = entries.map((e: Entry) => ({
+    const toTranslate = userEntries.map((e) => ({
       id: e.id,
       text: e.msgid,
       context: e.msgctxt || undefined,
     }));
 
-    const translations = await translateBatch(toTranslate, targetLanguage);
+    const translations = await translateBatch(toTranslate, targetLanguage, userId);
 
     const results = await Promise.all(
       translations.map(async ({ id, translation }) => {
         if (!translation) return null;
 
-        const entry = entries.find((e: Entry) => e.id === id);
+        const entry = userEntries.find((e) => e.id === id);
         if (!entry) return null;
 
         // Save history
@@ -127,11 +135,21 @@ translateRoutes.post('/batch', async (req: Request, res: Response, next: NextFun
 // Translate all untranslated entries in a project
 translateRoutes.post('/project/:projectId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
     const { projectId } = req.params;
     const { targetLanguage } = req.body;
 
     if (!targetLanguage) {
       throw new AppError('targetLanguage is required', 400);
+    }
+
+    // Verify user owns the project
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId },
+    });
+
+    if (!project) {
+      throw new AppError('Project not found', 404);
     }
 
     const entries = await prisma.entry.findMany({
@@ -151,7 +169,7 @@ translateRoutes.post('/project/:projectId', async (req: Request, res: Response, 
       context: e.msgctxt || undefined,
     }));
 
-    const translations = await translateBatch(toTranslate, targetLanguage);
+    const translations = await translateBatch(toTranslate, targetLanguage, userId);
 
     const results = await Promise.all(
       translations.map(async ({ id, translation }) => {

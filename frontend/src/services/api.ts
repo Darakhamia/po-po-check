@@ -4,6 +4,24 @@ const api = axios.create({
   baseURL: '/api',
 });
 
+// This will be set by the AuthProvider
+let getToken: (() => Promise<string | null>) | null = null;
+
+export const setTokenGetter = (getter: () => Promise<string | null>) => {
+  getToken = getter;
+};
+
+// Add auth token to all requests
+api.interceptors.request.use(async (config) => {
+  if (getToken) {
+    const token = await getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 export interface Project {
   id: string;
   name: string;
@@ -101,9 +119,9 @@ export const translateProject = (projectId: string, targetLanguage: string) =>
   api.post<{ translated: number; total: number }>(`/translate/project/${projectId}`, { targetLanguage });
 
 // Settings
-export const getSettings = () => api.get('/settings');
-export const updateSetting = (key: string, value: string) =>
-  api.put(`/settings/${key}`, { value });
+export const getSettings = () => api.get<{ openaiApiKey: string | null; openaiApiKeyConfigured: boolean }>('/settings');
+export const updateOpenaiApiKey = (value: string) =>
+  api.put('/settings/openai-api-key', { value });
 export const getApiKeyStatus = () => api.get<{ configured: boolean; source: string }>('/settings/api-key-status');
 
 export default api;

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fileUpload from 'express-fileupload';
 import dotenv from 'dotenv';
+import { clerkMiddleware, requireAuth, extractUserId } from './middleware/auth';
 import { projectRoutes } from './routes/projects';
 import { entryRoutes } from './routes/entries';
 import { translateRoutes } from './routes/translate';
@@ -21,14 +22,19 @@ app.use(fileUpload({
   abortOnLimit: true,
 }));
 
-app.use('/api/projects', projectRoutes);
-app.use('/api/entries', entryRoutes);
-app.use('/api/translate', translateRoutes);
-app.use('/api/settings', settingsRoutes);
+// Clerk middleware - parses auth from request
+app.use(clerkMiddleware());
 
+// Health check - no auth required
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Protected routes - require authentication
+app.use('/api/projects', requireAuth(), extractUserId, projectRoutes);
+app.use('/api/entries', requireAuth(), extractUserId, entryRoutes);
+app.use('/api/translate', requireAuth(), extractUserId, translateRoutes);
+app.use('/api/settings', requireAuth(), extractUserId, settingsRoutes);
 
 app.use(errorHandler);
 

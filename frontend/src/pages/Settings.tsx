@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Key, Check, AlertCircle, Languages, Plus, X, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getApiKeyStatus, updateSetting } from '../services/api';
+import { getApiKeyStatus, updateOpenaiApiKey } from '../services/api';
 import { useStore } from '../store/useStore';
 
 const DEFAULT_LANGUAGES = [
@@ -51,7 +51,7 @@ export default function Settings() {
 
     try {
       setIsSaving(true);
-      await updateSetting('openai_api_key', apiKey);
+      await updateOpenaiApiKey(apiKey);
       toast.success('API key saved');
       setApiKey('');
       loadApiKeyStatus();
@@ -128,7 +128,7 @@ export default function Settings() {
                   <>
                     <Check className="w-4 h-4" />
                     <span className="text-sm">
-                      API key configured ({apiKeyStatus.source === 'database' ? 'from settings' : 'from environment'})
+                      API key configured
                     </span>
                   </>
                 ) : (

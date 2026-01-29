@@ -10,6 +10,7 @@ datasource db {
 
 model Project {
   id          String   @id @default(uuid())
+  userId      String   // Clerk user ID
   name        String
   filename    String
   language    String?
@@ -17,6 +18,8 @@ model Project {
   updatedAt   DateTime @updatedAt
   entries     Entry[]
   history     History[]
+
+  @@index([userId])
 }
 
 model Entry {
@@ -54,9 +57,10 @@ model History {
   @@index([entryId])
 }
 
-model Settings {
+model UserSettings {
   id          String   @id @default(uuid())
-  key         String   @unique
-  value       String
+  userId      String   @unique // Clerk user ID
+  openaiApiKey String?
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
