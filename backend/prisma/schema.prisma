@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  filename    String
+  language    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  entries     Entry[]
+  history     History[]
+}
+
+model Entry {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  msgid       String
+  msgidPlural String?
+  msgstr      String[]
+  msgctxt     String?
+  comments    String?
+  reference   String?
+  flags       String[]
+  isTranslated Boolean @default(false)
+  isFuzzy     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([isTranslated])
+}
+
+model History {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  entryId     String
+  msgid       String
+  oldMsgstr   String[]
+  newMsgstr   String[]
+  changedAt   DateTime @default(now())
+  changedBy   String?
+
+  @@index([projectId])
+  @@index([entryId])
+}
+
+model Settings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  updatedAt   DateTime @updatedAt
+}
