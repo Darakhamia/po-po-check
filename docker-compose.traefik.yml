@@ -31,16 +31,7 @@ services:
     networks:
       - traefik-public
     labels:
-      # Dashboard (optional, можешь убрать если не нужен)
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.polyglot.sbs`)"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      # Basic auth для dashboard (admin:admin - поменяй!)
-      # Сгенерировать: htpasswd -nb admin yourpassword
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$apr1$$xyz$$hashedpassword"
+      - "traefik.enable=false"
 
 networks:
   traefik-public:

@@ -37,10 +37,11 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      # API routes
+      # API routes (higher priority)
       - "traefik.http.routers.polyglot-api.rule=Host(`polyglot.sbs`) && PathPrefix(`/api`)"
       - "traefik.http.routers.polyglot-api.entrypoints=websecure"
       - "traefik.http.routers.polyglot-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.polyglot-api.priority=100"
       - "traefik.http.services.polyglot-api.loadbalancer.server.port=3001"
 
   frontend:
@@ -56,14 +57,12 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      # Frontend routes
+      # Frontend routes (lower priority than API)
       - "traefik.http.routers.polyglot.rule=Host(`polyglot.sbs`)"
       - "traefik.http.routers.polyglot.entrypoints=websecure"
       - "traefik.http.routers.polyglot.tls.certresolver=letsencrypt"
-      - "traefik.http.services.polyglot.loadbalancer.server.port=80"
-      # Priority: API routes should be handled first
       - "traefik.http.routers.polyglot.priority=1"
-      - "traefik.http.routers.polyglot-api.priority=2"
+      - "traefik.http.services.polyglot.loadbalancer.server.port=80"
 
 networks:
   polyglot-internal:
