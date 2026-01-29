@@ -35,12 +35,20 @@ export async function translateText(options: TranslateOptions): Promise<string> 
   const client = await getOpenAIClient();
   const { text, targetLanguage, context, sourceLanguage } = options;
 
-  const systemPrompt = `You are a professional translator. Translate the following text to ${targetLanguage}.
-Keep the translation accurate and natural-sounding.
-Preserve any placeholders like %s, %d, {0}, {{variable}}, etc.
+  const systemPrompt = `You are a professional translator for software localization. Translate the following text to ${targetLanguage}.
+
+CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. If the original text does NOT end with a period/punctuation, do NOT add one to the translation
+2. If the original text DOES end with punctuation (. ! ? etc.), preserve the SAME punctuation in translation
+3. If the original starts with lowercase, start translation with lowercase
+4. If the original starts with uppercase, start translation with uppercase
+5. Preserve leading/trailing spaces exactly as in original
+6. Preserve ALL placeholders exactly: %s, %d, %@, {0}, {name}, {{variable}}, <tag>, $variable, etc.
+
 ${context ? `Context: ${context}` : ''}
 ${sourceLanguage ? `Source language: ${sourceLanguage}` : ''}
-Return ONLY the translated text, nothing else.`;
+
+Return ONLY the translated text, nothing else. No quotes, no explanations.`;
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -48,11 +56,71 @@ Return ONLY the translated text, nothing else.`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: text },
     ],
-    temperature: 0.3,
+    temperature: 0.2,
     max_tokens: 2000,
   });
 
-  return response.choices[0]?.message?.content?.trim() || '';
+  let translation = response.choices[0]?.message?.content?.trim() || '';
+
+  // Post-process to ensure formatting matches
+  translation = matchFormatting(text, translation);
+
+  return translation;
+}
+
+// Post-process translation to match original formatting
+function matchFormatting(original: string, translation: string): string {
+  if (!original || !translation) return translation;
+
+  let result = translation;
+
+  // Match leading whitespace
+  const originalLeadingSpace = original.match(/^(\s*)/)?.[1] || '';
+  const translationLeadingSpace = result.match(/^(\s*)/)?.[1] || '';
+  if (originalLeadingSpace !== translationLeadingSpace) {
+    result = originalLeadingSpace + result.trimStart();
+  }
+
+  // Match trailing whitespace
+  const originalTrailingSpace = original.match(/(\s*)$/)?.[1] || '';
+  const translationTrailingSpace = result.match(/(\s*)$/)?.[1] || '';
+  if (originalTrailingSpace !== translationTrailingSpace) {
+    result = result.trimEnd() + originalTrailingSpace;
+  }
+
+  // Match ending punctuation
+  const punctuationMarks = ['.', '!', '?', ':', ';', '...', '。', '！', '？'];
+  const originalEnding = punctuationMarks.find(p => original.trimEnd().endsWith(p));
+  const translationEnding = punctuationMarks.find(p => result.trimEnd().endsWith(p));
+
+  if (!originalEnding && translationEnding) {
+    // Original has no punctuation, but translation does - remove it
+    result = result.trimEnd().slice(0, -translationEnding.length) + (original.endsWith(' ') ? ' ' : '');
+  } else if (originalEnding && !translationEnding) {
+    // Original has punctuation, but translation doesn't - add it
+    result = result.trimEnd() + originalEnding + (original.endsWith(' ') ? ' ' : '');
+  }
+
+  // Match first letter case
+  if (result.length > 0 && original.length > 0) {
+    const originalFirstChar = original.trimStart().charAt(0);
+    const translationFirstChar = result.trimStart().charAt(0);
+
+    const originalIsUpper = originalFirstChar === originalFirstChar.toUpperCase() &&
+                            originalFirstChar !== originalFirstChar.toLowerCase();
+    const originalIsLower = originalFirstChar === originalFirstChar.toLowerCase() &&
+                            originalFirstChar !== originalFirstChar.toUpperCase();
+
+    if (originalIsUpper && translationFirstChar === translationFirstChar.toLowerCase()) {
+      const leadingSpace = result.match(/^(\s*)/)?.[1] || '';
+      result = leadingSpace + result.trimStart().charAt(0).toUpperCase() + result.trimStart().slice(1);
+    } else if (originalIsLower && translationFirstChar === translationFirstChar.toUpperCase()) {
+      const leadingSpace = result.match(/^(\s*)/)?.[1] || '';
+      result = leadingSpace + result.trimStart().charAt(0).toLowerCase() + result.trimStart().slice(1);
+    }
+  }
+
+  return result;
 }
 
 export async function translateBatch(
