@@ -1,15 +1,18 @@
-FROM node:20-alpine
+FROM node:18-alpine
+
+# Установите OpenSSL
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
-
-COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm ci
 
 COPY . .
 
-EXPOSE 3001
+# Генерация Prisma Client
+RUN npx prisma generate
 
-CMD ["sh", "-c", "npx prisma db push && npm run dev"]
+EXPOSE 3000
+
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
