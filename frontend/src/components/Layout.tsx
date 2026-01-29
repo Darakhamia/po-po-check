@@ -11,7 +11,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
               <Globe className="w-8 h-8 text-primary-500" />
-              <span className="text-xl font-semibold text-gray-900">PO Editor</span>
+              <span className="text-xl font-semibold text-gray-900">POlyglot</span>
             </Link>
 
             <nav className="flex items-center gap-4">

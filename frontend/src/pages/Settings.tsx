@@ -94,7 +94,7 @@ export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold text-gray-900 mb-2">Settings</h1>
-      <p className="text-gray-600 mb-8">Configure your PO Editor preferences</p>
+      <p className="text-gray-600 mb-8">Configure your POlyglot preferences</p>
 
       {/* API Key Section */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -236,7 +236,7 @@ export default function Settings() {
         <h2 className="text-lg font-medium text-gray-900 mb-4">About</h2>
         <div className="text-sm text-gray-600 space-y-2">
           <p>
-            <strong>PO Editor</strong> is a web-based translation editor for .po files with ChatGPT integration.
+            <strong>POlyglot</strong> is a web-based translation editor for .po files with AI integration.
           </p>
           <p>
             Built with React, Node.js, Express, and PostgreSQL.

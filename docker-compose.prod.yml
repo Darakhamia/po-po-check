@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: polyglot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: polyglot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-polyglot_secret_change_me}
+      POSTGRES_DB: polyglot
+    volumes:
+      - polyglot-db-data:/var/lib/postgresql/data
+    networks:
+      - polyglot-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U polyglot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: polyglot-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://polyglot:${DB_PASSWORD:-polyglot_secret_change_me}@db:5432/polyglot
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - polyglot-internal
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      # API routes
+      - "traefik.http.routers.polyglot-api.rule=Host(`polyglot.sbs`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.polyglot-api.entrypoints=websecure"
+      - "traefik.http.routers.polyglot-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.polyglot-api.loadbalancer.server.port=3001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: polyglot-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - polyglot-internal
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      # Frontend routes
+      - "traefik.http.routers.polyglot.rule=Host(`polyglot.sbs`)"
+      - "traefik.http.routers.polyglot.entrypoints=websecure"
+      - "traefik.http.routers.polyglot.tls.certresolver=letsencrypt"
+      - "traefik.http.services.polyglot.loadbalancer.server.port=80"
+      # Priority: API routes should be handled first
+      - "traefik.http.routers.polyglot.priority=1"
+      - "traefik.http.routers.polyglot-api.priority=2"
+
+networks:
+  polyglot-internal:
+    driver: bridge
+  traefik-public:
+    external: true
+
+volumes:
+  polyglot-db-data:

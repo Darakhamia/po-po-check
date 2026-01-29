@@ -132,7 +132,7 @@ export const useStore = create<AppState>()(
       setIsTranslating: (translating: boolean) => set({ isTranslating: translating }),
     }),
     {
-      name: 'po-editor-storage',
+      name: 'polyglot-storage',
       partialize: (state: AppState) => ({
         targetLanguage: state.targetLanguage,
         languages: state.languages,
