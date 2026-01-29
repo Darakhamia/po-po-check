@@ -39,7 +39,6 @@ export default function ProjectEditor() {
     targetLanguage,
     isLoading,
     setIsLoading,
-    isTranslating,
     setIsTranslating,
   } = useStore();
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Languages, Check, X, History, AlertCircle } from 'lucide-react';
+import { Languages, Check, X, AlertCircle } from 'lucide-react';
 import { Entry } from '../services/api';
 
 interface EntryRowProps {

@@ -15,7 +15,6 @@ export default function Toolbar({ onTranslateSelected, onExport }: ToolbarProps)
     selectedEntries,
     selectAll,
     clearSelection,
-    entries,
     targetLanguage,
     setTargetLanguage,
     isTranslating,

@@ -40,7 +40,7 @@ interface AppState {
   setIsTranslating: (translating: boolean) => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
+export const useStore = create<AppState>((set) => ({
   currentProject: null,
   setCurrentProject: (project) => set({ currentProject: project }),
 
