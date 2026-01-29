@@ -11,6 +11,7 @@ import {
   translateBatch,
   translateProject,
   exportProject,
+  undoEntry,
 } from '../services/api';
 import Toolbar from '../components/Toolbar';
 import EntryRow from '../components/EntryRow';
@@ -22,6 +23,7 @@ export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [translatingEntries, setTranslatingEntries] = useState<Set<string>>(new Set());
+  const [undoingEntries, setUndoingEntries] = useState<Set<string>>(new Set());
 
   const {
     currentProject,
@@ -140,6 +142,23 @@ export default function ProjectEditor() {
       toast.error(error.response?.data?.error || 'Translation failed');
     } finally {
       setTranslatingEntries((prev) => {
+        const next = new Set(prev);
+        next.delete(entryId);
+        return next;
+      });
+    }
+  };
+
+  const handleUndo = async (entryId: string) => {
+    try {
+      setUndoingEntries((prev) => new Set(prev).add(entryId));
+      const response = await undoEntry(entryId);
+      updateEntryInStore(entryId, response.data.entry);
+      toast.success('Undo successful');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Undo failed - no history available');
+    } finally {
+      setUndoingEntries((prev) => {
         const next = new Set(prev);
         next.delete(entryId);
         return next;
@@ -287,7 +306,9 @@ export default function ProjectEditor() {
                 onToggleSelect={() => toggleSelection(entry.id)}
                 onUpdate={(msgstr) => handleUpdateEntry(entry.id, msgstr)}
                 onTranslate={() => handleTranslateSingle(entry.id)}
+                onUndo={() => handleUndo(entry.id)}
                 isTranslating={translatingEntries.has(entry.id)}
+                isUndoing={undoingEntries.has(entry.id)}
               />
             ))}
           </tbody>

@@ -70,8 +70,25 @@ export const updateEntry = (id: string, data: { msgstr?: string[]; isFuzzy?: boo
 export const batchUpdateEntries = (updates: { id: string; msgstr: string[] }[]) =>
   api.post<Entry[]>('/entries/batch-update', { updates });
 
+export interface HistoryEntry {
+  id: string;
+  projectId: string;
+  entryId: string;
+  msgid: string;
+  oldMsgstr: string[];
+  newMsgstr: string[];
+  changedBy: string | null;
+  changedAt: string;
+}
+
 export const getEntryHistory = (id: string) =>
-  api.get(`/entries/${id}/history`);
+  api.get<HistoryEntry[]>(`/entries/${id}/history`);
+
+export const undoEntry = (id: string) =>
+  api.post<{ entry: Entry; undone: HistoryEntry }>(`/entries/${id}/undo`);
+
+export const restoreEntry = (entryId: string, historyId: string) =>
+  api.post<{ entry: Entry; restoredFrom: HistoryEntry }>(`/entries/${entryId}/restore/${historyId}`);
 
 // Translation
 export const translateSingle = (entryId: string, targetLanguage: string) =>

@@ -169,3 +169,107 @@ entryRoutes.get('/:id/history', async (req: Request, res: Response, next: NextFu
     next(error);
   }
 });
+
+// Undo - revert to previous translation
+entryRoutes.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    // Get the most recent history entry for this entry
+    const lastHistory = await prisma.history.findFirst({
+      where: { entryId: id },
+      orderBy: { changedAt: 'desc' },
+    });
+
+    if (!lastHistory) {
+      throw new AppError('No history to undo', 400);
+    }
+
+    const entry = await prisma.entry.findUnique({
+      where: { id },
+    });
+
+    if (!entry) {
+      throw new AppError('Entry not found', 404);
+    }
+
+    // Create a new history entry for the undo action (so we can redo)
+    await prisma.history.create({
+      data: {
+        projectId: entry.projectId,
+        entryId: id,
+        msgid: entry.msgid,
+        oldMsgstr: entry.msgstr,
+        newMsgstr: lastHistory.oldMsgstr,
+        changedBy: 'undo',
+      },
+    });
+
+    // Update the entry with the old value
+    const updatedEntry = await prisma.entry.update({
+      where: { id },
+      data: {
+        msgstr: lastHistory.oldMsgstr,
+        isTranslated: lastHistory.oldMsgstr.some((s: string) => s.length > 0),
+      },
+    });
+
+    res.json({
+      entry: updatedEntry,
+      undone: lastHistory,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Restore to a specific history state
+entryRoutes.post('/:id/restore/:historyId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id, historyId } = req.params;
+
+    const historyEntry = await prisma.history.findUnique({
+      where: { id: historyId },
+    });
+
+    if (!historyEntry || historyEntry.entryId !== id) {
+      throw new AppError('History entry not found', 404);
+    }
+
+    const entry = await prisma.entry.findUnique({
+      where: { id },
+    });
+
+    if (!entry) {
+      throw new AppError('Entry not found', 404);
+    }
+
+    // Save current state to history before restoring
+    await prisma.history.create({
+      data: {
+        projectId: entry.projectId,
+        entryId: id,
+        msgid: entry.msgid,
+        oldMsgstr: entry.msgstr,
+        newMsgstr: historyEntry.oldMsgstr,
+        changedBy: 'restore',
+      },
+    });
+
+    // Restore to the old value from that history entry
+    const updatedEntry = await prisma.entry.update({
+      where: { id },
+      data: {
+        msgstr: historyEntry.oldMsgstr,
+        isTranslated: historyEntry.oldMsgstr.some((s: string) => s.length > 0),
+      },
+    });
+
+    res.json({
+      entry: updatedEntry,
+      restoredFrom: historyEntry,
+    });
+  } catch (error) {
+    next(error);
+  }
+});

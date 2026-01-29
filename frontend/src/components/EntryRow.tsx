@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Languages, Check, X, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Languages, Check, X, AlertCircle, AlertTriangle, Undo2 } from 'lucide-react';
 import { Entry } from '../services/api';
 import { validateTranslation } from '../utils/validation';
 
@@ -9,7 +9,9 @@ interface EntryRowProps {
   onToggleSelect: () => void;
   onUpdate: (msgstr: string[]) => void;
   onTranslate: () => void;
+  onUndo: () => void;
   isTranslating?: boolean;
+  isUndoing?: boolean;
 }
 
 export default function EntryRow({
@@ -18,7 +20,9 @@ export default function EntryRow({
   onToggleSelect,
   onUpdate,
   onTranslate,
+  onUndo,
   isTranslating,
+  isUndoing,
 }: EntryRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(entry.msgstr[0] || '');
@@ -192,6 +196,15 @@ export default function EntryRow({
           >
             <Languages className="w-3 h-3" />
             {isTranslating ? '...' : 'AI'}
+          </button>
+          <button
+            onClick={onUndo}
+            disabled={isUndoing || !entry.isTranslated}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded hover:bg-gray-100 disabled:opacity-50"
+            title="Undo last change"
+          >
+            <Undo2 className="w-3 h-3" />
+            {isUndoing ? '...' : 'Undo'}
           </button>
         </div>
       </td>
