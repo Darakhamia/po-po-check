@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -9,12 +9,14 @@ import {
   updateEntry,
   translateSingle,
   translateBatch,
+  translateProject,
   exportProject,
 } from '../services/api';
 import Toolbar from '../components/Toolbar';
 import EntryRow from '../components/EntryRow';
 import Pagination from '../components/Pagination';
 import ProgressBar from '../components/ProgressBar';
+import { hasValidationIssues } from '../utils/validation';
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +34,7 @@ export default function ProjectEditor() {
     clearSelection,
     searchQuery,
     filter,
+    sortBy,
     currentPage,
     setCurrentPage,
     totalPages,
@@ -61,11 +64,14 @@ export default function ProjectEditor() {
     if (!id) return;
 
     try {
+      // For 'issues' filter, we need to load all and filter client-side
+      const filterParam = filter === 'issues' || filter === 'all' ? undefined : filter;
+
       const response = await getEntries(id, {
         search: searchQuery || undefined,
-        filter: filter === 'all' ? undefined : filter,
+        filter: filterParam,
         page: currentPage,
-        limit: 50,
+        limit: 100, // Load more for client-side filtering
       });
       setEntries(response.data.entries);
       setTotalPages(response.data.pagination.totalPages);
@@ -83,6 +89,36 @@ export default function ProjectEditor() {
       loadEntries();
     }
   }, [currentProject, loadEntries]);
+
+  // Filter and sort entries client-side
+  const processedEntries = useMemo(() => {
+    let filtered = [...entries];
+
+    // Filter by issues
+    if (filter === 'issues') {
+      filtered = filtered.filter((entry) => {
+        if (!entry.isTranslated || !entry.msgstr[0]) return false;
+        return hasValidationIssues(entry.msgid, entry.msgstr[0]);
+      });
+    }
+
+    // Sort entries
+    if (sortBy === 'untranslated-first') {
+      filtered.sort((a, b) => {
+        if (a.isTranslated === b.isTranslated) return 0;
+        return a.isTranslated ? 1 : -1;
+      });
+    } else if (sortBy === 'issues-first') {
+      filtered.sort((a, b) => {
+        const aHasIssues = a.isTranslated && a.msgstr[0] && hasValidationIssues(a.msgid, a.msgstr[0]);
+        const bHasIssues = b.isTranslated && b.msgstr[0] && hasValidationIssues(b.msgid, b.msgstr[0]);
+        if (aHasIssues === bHasIssues) return 0;
+        return aHasIssues ? -1 : 1;
+      });
+    }
+
+    return filtered;
+  }, [entries, filter, sortBy]);
 
   const handleUpdateEntry = async (entryId: string, msgstr: string[]) => {
     try {
@@ -132,6 +168,24 @@ export default function ProjectEditor() {
     }
   };
 
+  const handleTranslateAll = async () => {
+    if (!id) return;
+
+    try {
+      setIsTranslating(true);
+      const response = await translateProject(id, targetLanguage);
+
+      toast.success(`Translated ${response.data.translated} of ${response.data.total} entries`);
+
+      // Reload entries to get updated translations
+      await loadEntries();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Translation failed');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const handleExport = async () => {
     if (!id || !currentProject) return;
 
@@ -153,6 +207,7 @@ export default function ProjectEditor() {
   };
 
   const translatedCount = entries.filter((e) => e.isTranslated).length;
+  const untranslatedCount = entries.filter((e) => !e.isTranslated).length;
 
   if (isLoading || !currentProject) {
     return (
@@ -194,7 +249,12 @@ export default function ProjectEditor() {
       </div>
 
       {/* Toolbar */}
-      <Toolbar onTranslateSelected={handleTranslateSelected} onExport={handleExport} />
+      <Toolbar
+        onTranslateSelected={handleTranslateSelected}
+        onTranslateAll={handleTranslateAll}
+        onExport={handleExport}
+        untranslatedCount={untranslatedCount}
+      />
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
@@ -219,7 +279,7 @@ export default function ProjectEditor() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {entries.map((entry) => (
+            {processedEntries.map((entry) => (
               <EntryRow
                 key={entry.id}
                 entry={entry}
@@ -233,7 +293,7 @@ export default function ProjectEditor() {
           </tbody>
         </table>
 
-        {entries.length === 0 && (
+        {processedEntries.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No entries found matching your criteria
           </div>

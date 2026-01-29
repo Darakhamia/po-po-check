@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import { Languages, Check, X, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Languages, Check, X, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Entry } from '../services/api';
+import { validateTranslation } from '../utils/validation';
 
 interface EntryRowProps {
   entry: Entry;
@@ -22,6 +23,12 @@ export default function EntryRow({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(entry.msgstr[0] || '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Validation issues
+  const issues = useMemo(() => {
+    if (!entry.isTranslated || !entry.msgstr[0]) return [];
+    return validateTranslation(entry.msgid, entry.msgstr[0]);
+  }, [entry.msgid, entry.msgstr, entry.isTranslated]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -56,7 +63,7 @@ export default function EntryRow({
 
   const rowClass = `entry-row border-b border-gray-100 ${isSelected ? 'selected' : ''} ${
     !entry.isTranslated ? 'untranslated' : ''
-  } ${entry.isFuzzy ? 'fuzzy' : ''}`;
+  } ${entry.isFuzzy ? 'fuzzy' : ''} ${issues.length > 0 ? 'has-issues' : ''}`;
 
   return (
     <tr className={rowClass}>
@@ -115,19 +122,40 @@ export default function EntryRow({
             </div>
           </div>
         ) : (
-          <div
-            onClick={() => setIsEditing(true)}
-            className="cursor-text min-h-[40px] px-3 py-2 border border-transparent hover:border-gray-200 rounded-md text-sm font-mono whitespace-pre-wrap break-words"
-          >
-            {entry.msgstr[0] || (
-              <span className="text-gray-400 italic">Click to translate...</span>
+          <div className="space-y-2">
+            <div
+              onClick={() => setIsEditing(true)}
+              className={`cursor-text min-h-[40px] px-3 py-2 border rounded-md text-sm font-mono whitespace-pre-wrap break-words ${
+                issues.length > 0
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-transparent hover:border-gray-200'
+              }`}
+            >
+              {entry.msgstr[0] || (
+                <span className="text-gray-400 italic">Click to translate...</span>
+              )}
+            </div>
+
+            {/* Validation issues */}
+            {issues.length > 0 && (
+              <div className="space-y-1">
+                {issues.map((issue, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded"
+                  >
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{issue.message}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
       </td>
 
       <td className="px-4 py-3 w-24">
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {!entry.isTranslated && (
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
               <AlertCircle className="w-3 h-3 mr-1" />
@@ -137,6 +165,18 @@ export default function EntryRow({
           {entry.isFuzzy && (
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
               Fuzzy
+            </span>
+          )}
+          {entry.isTranslated && issues.length > 0 && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Issues
+            </span>
+          )}
+          {entry.isTranslated && issues.length === 0 && !entry.isFuzzy && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+              <Check className="w-3 h-3 mr-1" />
+              OK
             </span>
           )}
         </div>

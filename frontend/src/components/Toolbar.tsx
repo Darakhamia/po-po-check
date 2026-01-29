@@ -1,46 +1,33 @@
-import { Search, Filter, Languages, Download, CheckSquare, Square } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import { Search, Filter, Languages, Download, CheckSquare, Square, ArrowUpDown, Wand2 } from 'lucide-react';
+import { useStore, FilterType, SortType } from '../store/useStore';
 
 interface ToolbarProps {
   onTranslateSelected: () => void;
+  onTranslateAll: () => void;
   onExport: () => void;
+  untranslatedCount: number;
 }
 
-export default function Toolbar({ onTranslateSelected, onExport }: ToolbarProps) {
+export default function Toolbar({ onTranslateSelected, onTranslateAll, onExport, untranslatedCount }: ToolbarProps) {
   const {
     searchQuery,
     setSearchQuery,
     filter,
     setFilter,
+    sortBy,
+    setSortBy,
     selectedEntries,
     selectAll,
     clearSelection,
     targetLanguage,
     setTargetLanguage,
+    languages,
     isTranslating,
   } = useStore();
 
-  const languages = [
-    'Russian',
-    'Spanish',
-    'French',
-    'German',
-    'Italian',
-    'Portuguese',
-    'Chinese',
-    'Japanese',
-    'Korean',
-    'Arabic',
-    'Hindi',
-    'Dutch',
-    'Polish',
-    'Turkish',
-    'Ukrainian',
-  ];
-
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -58,13 +45,28 @@ export default function Toolbar({ onTranslateSelected, onExport }: ToolbarProps)
           <Filter className="w-4 h-4 text-gray-400" />
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(e.target.value as FilterType)}
             className="border border-gray-300 rounded-md text-sm px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="all">All entries</option>
             <option value="untranslated">Untranslated</option>
             <option value="translated">Translated</option>
             <option value="fuzzy">Fuzzy</option>
+            <option value="issues">With issues</option>
+          </select>
+        </div>
+
+        {/* Sort */}
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="w-4 h-4 text-gray-400" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortType)}
+            className="border border-gray-300 rounded-md text-sm px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="default">Default order</option>
+            <option value="untranslated-first">Untranslated first</option>
+            <option value="issues-first">Issues first</option>
           </select>
         </div>
 
@@ -106,6 +108,18 @@ export default function Toolbar({ onTranslateSelected, onExport }: ToolbarProps)
 
         {/* Actions */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Translate All button */}
+          {untranslatedCount > 0 && (
+            <button
+              onClick={onTranslateAll}
+              disabled={isTranslating}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4" />
+              {isTranslating ? 'Translating...' : `Translate all (${untranslatedCount})`}
+            </button>
+          )}
+
           {selectedEntries.size > 0 && (
             <button
               onClick={onTranslateSelected}

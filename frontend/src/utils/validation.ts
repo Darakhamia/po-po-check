@@ -1,0 +1,164 @@
+export interface ValidationIssue {
+  type: 'capitalization' | 'punctuation' | 'placeholder' | 'whitespace';
+  message: string;
+}
+
+// Check if strings match capitalization pattern
+function checkCapitalization(original: string, translation: string): ValidationIssue | null {
+  if (!original || !translation) return null;
+
+  const originalFirstChar = original.charAt(0);
+  const translationFirstChar = translation.charAt(0);
+
+  const originalIsUpper = originalFirstChar === originalFirstChar.toUpperCase() &&
+                          originalFirstChar !== originalFirstChar.toLowerCase();
+  const originalIsLower = originalFirstChar === originalFirstChar.toLowerCase() &&
+                          originalFirstChar !== originalFirstChar.toUpperCase();
+
+  const translationIsUpper = translationFirstChar === translationFirstChar.toUpperCase() &&
+                             translationFirstChar !== translationFirstChar.toLowerCase();
+  const translationIsLower = translationFirstChar === translationFirstChar.toLowerCase() &&
+                             translationFirstChar !== translationFirstChar.toUpperCase();
+
+  if (originalIsUpper && translationIsLower) {
+    return {
+      type: 'capitalization',
+      message: 'Translation should start with uppercase letter',
+    };
+  }
+
+  if (originalIsLower && translationIsUpper) {
+    return {
+      type: 'capitalization',
+      message: 'Translation should start with lowercase letter',
+    };
+  }
+
+  return null;
+}
+
+// Check if strings match ending punctuation
+function checkPunctuation(original: string, translation: string): ValidationIssue | null {
+  if (!original || !translation) return null;
+
+  const punctuationMarks = ['.', '!', '?', ':', ';', ',', '...', '。', '！', '？'];
+
+  const originalTrimmed = original.trim();
+  const translationTrimmed = translation.trim();
+
+  const originalEnding = punctuationMarks.find(p => originalTrimmed.endsWith(p));
+  const translationEnding = punctuationMarks.find(p => translationTrimmed.endsWith(p));
+
+  // Original has punctuation but translation doesn't
+  if (originalEnding && !translationEnding) {
+    return {
+      type: 'punctuation',
+      message: `Translation should end with "${originalEnding}"`,
+    };
+  }
+
+  // Translation has punctuation but original doesn't
+  if (!originalEnding && translationEnding) {
+    return {
+      type: 'punctuation',
+      message: `Translation should not end with "${translationEnding}"`,
+    };
+  }
+
+  return null;
+}
+
+// Check if placeholders are preserved
+function checkPlaceholders(original: string, translation: string): ValidationIssue | null {
+  if (!original || !translation) return null;
+
+  // Common placeholder patterns
+  const placeholderPatterns = [
+    /%[sd@]/g,           // %s, %d, %@
+    /%\d+\$[sd@]/g,      // %1$s, %2$d
+    /\{[^}]+\}/g,        // {name}, {0}
+    /\{\{[^}]+\}\}/g,    // {{variable}}
+    /<[^>]+>/g,          // <tag>, </tag>
+    /\$\{[^}]+\}/g,      // ${variable}
+    /\$\w+/g,            // $variable
+  ];
+
+  const extractPlaceholders = (text: string): string[] => {
+    const found: string[] = [];
+    for (const pattern of placeholderPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        found.push(...matches);
+      }
+    }
+    return found.sort();
+  };
+
+  const originalPlaceholders = extractPlaceholders(original);
+  const translationPlaceholders = extractPlaceholders(translation);
+
+  const missingInTranslation = originalPlaceholders.filter(
+    p => !translationPlaceholders.includes(p)
+  );
+
+  if (missingInTranslation.length > 0) {
+    return {
+      type: 'placeholder',
+      message: `Missing placeholder(s): ${missingInTranslation.join(', ')}`,
+    };
+  }
+
+  return null;
+}
+
+// Check whitespace issues
+function checkWhitespace(original: string, translation: string): ValidationIssue | null {
+  if (!original || !translation) return null;
+
+  const originalLeadingSpace = original.startsWith(' ');
+  const originalTrailingSpace = original.endsWith(' ');
+  const translationLeadingSpace = translation.startsWith(' ');
+  const translationTrailingSpace = translation.endsWith(' ');
+
+  if (originalLeadingSpace !== translationLeadingSpace) {
+    return {
+      type: 'whitespace',
+      message: originalLeadingSpace
+        ? 'Translation should start with a space'
+        : 'Translation should not start with a space',
+    };
+  }
+
+  if (originalTrailingSpace !== translationTrailingSpace) {
+    return {
+      type: 'whitespace',
+      message: originalTrailingSpace
+        ? 'Translation should end with a space'
+        : 'Translation should not end with a space',
+    };
+  }
+
+  return null;
+}
+
+export function validateTranslation(original: string, translation: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  const capIssue = checkCapitalization(original, translation);
+  if (capIssue) issues.push(capIssue);
+
+  const punctIssue = checkPunctuation(original, translation);
+  if (punctIssue) issues.push(punctIssue);
+
+  const placeholderIssue = checkPlaceholders(original, translation);
+  if (placeholderIssue) issues.push(placeholderIssue);
+
+  const whitespaceIssue = checkWhitespace(original, translation);
+  if (whitespaceIssue) issues.push(whitespaceIssue);
+
+  return issues;
+}
+
+export function hasValidationIssues(original: string, translation: string): boolean {
+  return validateTranslation(original, translation).length > 0;
+}
