@@ -41,7 +41,8 @@ function checkCapitalization(original: string, translation: string): ValidationI
 function checkPunctuation(original: string, translation: string): ValidationIssue | null {
   if (!original || !translation) return null;
 
-  const punctuationMarks = ['.', '!', '?', ':', ';', ',', '...', '。', '！', '？'];
+  // Order matters: check longer patterns first (... before .)
+  const punctuationMarks = ['...', '。', '！', '？', '.', '!', '?', ':', ';', ','];
 
   const originalTrimmed = original.trim();
   const translationTrimmed = translation.trim();
@@ -62,6 +63,14 @@ function checkPunctuation(original: string, translation: string): ValidationIssu
     return {
       type: 'punctuation',
       message: `Translation should not end with "${translationEnding}"`,
+    };
+  }
+
+  // Both have punctuation but they are different
+  if (originalEnding && translationEnding && originalEnding !== translationEnding) {
+    return {
+      type: 'punctuation',
+      message: `Translation ends with "${translationEnding}", but source ends with "${originalEnding}"`,
     };
   }
 
@@ -205,31 +214,26 @@ export function autoFixTranslation(original: string, translation: string): strin
   }
 
   // Fix punctuation
-  const punctuationMarks = ['.', '!', '?', ':', ';', ',', '...', '。', '！', '？'];
+  // Order matters: check longer patterns first (... before .)
+  const punctuationMarks = ['...', '。', '！', '？', '.', '!', '?', ':', ';', ','];
   const originalTrimmed = original.trim();
-  const fixedTrimmed = fixed.trim();
+  let fixedTrimmed = fixed.trim();
 
   const originalEnding = punctuationMarks.find(p => originalTrimmed.endsWith(p));
   const translationEnding = punctuationMarks.find(p => fixedTrimmed.endsWith(p));
 
-  // Original has punctuation but translation doesn't - add it
-  if (originalEnding && !translationEnding) {
-    if (originalTrailingSpace) {
-      // Insert before trailing space
-      fixed = fixed.trimEnd() + originalEnding + ' ';
-    } else {
-      fixed = fixed + originalEnding;
-    }
+  // Remove existing punctuation from translation if it exists
+  if (translationEnding) {
+    fixedTrimmed = fixedTrimmed.slice(0, -translationEnding.length);
   }
 
-  // Translation has punctuation but original doesn't - remove it
-  if (!originalEnding && translationEnding) {
-    if (originalTrailingSpace) {
-      fixed = fixed.trimEnd().slice(0, -translationEnding.length) + ' ';
-    } else {
-      fixed = fixed.trimEnd().slice(0, -translationEnding.length);
-    }
+  // Add correct punctuation if original has one
+  if (originalEnding) {
+    fixedTrimmed = fixedTrimmed + originalEnding;
   }
+
+  // Reconstruct with proper spacing
+  fixed = (originalLeadingSpace ? ' ' : '') + fixedTrimmed + (originalTrailingSpace ? ' ' : '');
 
   return fixed;
 }

@@ -89,17 +89,26 @@ function matchFormatting(original: string, translation: string): string {
   }
 
   // Match ending punctuation
-  const punctuationMarks = ['.', '!', '?', ':', ';', '...', '。', '！', '？'];
-  const originalEnding = punctuationMarks.find(p => original.trimEnd().endsWith(p));
-  const translationEnding = punctuationMarks.find(p => result.trimEnd().endsWith(p));
+  // Order matters: check longer patterns first (... before .)
+  const punctuationMarks = ['...', '。', '！', '？', '.', '!', '?', ':', ';'];
+  const originalTrimmed = original.trimEnd();
+  let resultTrimmed = result.trimEnd();
 
-  if (!originalEnding && translationEnding) {
-    // Original has no punctuation, but translation does - remove it
-    result = result.trimEnd().slice(0, -translationEnding.length) + (original.endsWith(' ') ? ' ' : '');
-  } else if (originalEnding && !translationEnding) {
-    // Original has punctuation, but translation doesn't - add it
-    result = result.trimEnd() + originalEnding + (original.endsWith(' ') ? ' ' : '');
+  const originalEnding = punctuationMarks.find(p => originalTrimmed.endsWith(p));
+  const translationEnding = punctuationMarks.find(p => resultTrimmed.endsWith(p));
+
+  // Remove existing punctuation from translation
+  if (translationEnding) {
+    resultTrimmed = resultTrimmed.slice(0, -translationEnding.length);
   }
+
+  // Add correct punctuation if original has one
+  if (originalEnding) {
+    resultTrimmed = resultTrimmed + originalEnding;
+  }
+
+  // Restore trailing whitespace
+  result = resultTrimmed + (original.endsWith(' ') ? ' ' : '');
 
   // Match first letter case
   if (result.length > 0 && original.length > 0) {
