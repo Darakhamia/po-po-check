@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import type { Settings } from '@prisma/client';
 import { prisma } from '../utils/db';
 import { resetOpenAIClient } from '../services/openai';
 import { AppError } from '../middleware/errorHandler';
@@ -10,7 +11,7 @@ settingsRoutes.get('/', async (req: Request, res: Response, next: NextFunction) 
   try {
     const settings = await prisma.settings.findMany();
 
-    const safeSettings = settings.map((s) => {
+    const safeSettings = settings.map((s: Settings) => {
       if (s.key === 'openai_api_key' && s.value) {
         return {
           ...s,

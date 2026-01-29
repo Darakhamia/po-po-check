@@ -1,4 +1,5 @@
 import * as gettextParser from 'gettext-parser';
+import type { POTranslation, POData } from 'gettext-parser';
 
 export interface POEntry {
   msgid: string;
@@ -17,7 +18,7 @@ export interface POEntry {
 export interface POFile {
   charset: string;
   headers: Record<string, string>;
-  translations: Record<string, Record<string, POEntry>>;
+  translations: Record<string, Record<string, POTranslation>>;
 }
 
 export function parsePOFile(buffer: Buffer): POFile {
@@ -25,7 +26,7 @@ export function parsePOFile(buffer: Buffer): POFile {
   return parsed as POFile;
 }
 
-export function compilePOFile(data: POFile): Buffer {
+export function compilePOFile(data: POData): Buffer {
   return gettextParser.po.compile(data);
 }
 
@@ -37,10 +38,11 @@ export function extractEntries(poFile: POFile): POEntry[] {
       if (msgid === '') continue; // Skip header entry
 
       const entry = poFile.translations[context][msgid];
+      const msgstr = entry.msgstr;
       entries.push({
         msgid: entry.msgid,
         msgidPlural: entry.msgid_plural,
-        msgstr: Array.isArray(entry.msgstr) ? entry.msgstr : [entry.msgstr || ''],
+        msgstr: Array.isArray(msgstr) ? msgstr : [msgstr || ''],
         msgctxt: entry.msgctxt || context || undefined,
         comments: entry.comments,
       });

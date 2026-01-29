@@ -1,8 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UploadedFile } from 'express-fileupload';
+import type { Project, Entry } from '@prisma/client';
 import { prisma } from '../utils/db';
 import { parsePOFile, extractEntries, buildPOFile, compilePOFile, POEntry } from '../services/poParser';
 import { AppError } from '../middleware/errorHandler';
+
+type ProjectWithCount = Project & { _count: { entries: number } };
 
 export const projectRoutes = Router();
 
@@ -19,7 +22,7 @@ projectRoutes.get('/', async (req: Request, res: Response, next: NextFunction) =
     });
 
     const projectsWithStats = await Promise.all(
-      projects.map(async (project) => {
+      projects.map(async (project: ProjectWithCount) => {
         const translatedCount = await prisma.entry.count({
           where: { projectId: project.id, isTranslated: true },
         });
@@ -119,7 +122,7 @@ projectRoutes.get('/:id/export', async (req: Request, res: Response, next: NextF
       throw new AppError('Project not found', 404);
     }
 
-    const poEntries: POEntry[] = project.entries.map((entry) => ({
+    const poEntries: POEntry[] = project.entries.map((entry: Entry) => ({
       msgid: entry.msgid,
       msgidPlural: entry.msgidPlural || undefined,
       msgstr: entry.msgstr,

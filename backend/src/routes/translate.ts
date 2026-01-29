@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import type { Entry } from '@prisma/client';
 import { prisma } from '../utils/db';
 import { translateText, translateBatch } from '../services/openai';
 import { AppError } from '../middleware/errorHandler';
@@ -76,7 +77,7 @@ translateRoutes.post('/batch', async (req: Request, res: Response, next: NextFun
       throw new AppError('No entries found', 404);
     }
 
-    const toTranslate = entries.map((e) => ({
+    const toTranslate = entries.map((e: Entry) => ({
       id: e.id,
       text: e.msgid,
       context: e.msgctxt || undefined,
@@ -88,7 +89,7 @@ translateRoutes.post('/batch', async (req: Request, res: Response, next: NextFun
       translations.map(async ({ id, translation }) => {
         if (!translation) return null;
 
-        const entry = entries.find((e) => e.id === id);
+        const entry = entries.find((e: Entry) => e.id === id);
         if (!entry) return null;
 
         // Save history
@@ -144,7 +145,7 @@ translateRoutes.post('/project/:projectId', async (req: Request, res: Response, 
       return res.json({ translated: 0, message: 'No untranslated entries found' });
     }
 
-    const toTranslate = entries.map((e) => ({
+    const toTranslate = entries.map((e: Entry) => ({
       id: e.id,
       text: e.msgid,
       context: e.msgctxt || undefined,
@@ -156,7 +157,7 @@ translateRoutes.post('/project/:projectId', async (req: Request, res: Response, 
       translations.map(async ({ id, translation }) => {
         if (!translation) return null;
 
-        const entry = entries.find((e) => e.id === id);
+        const entry = entries.find((e: Entry) => e.id === id);
         if (!entry) return null;
 
         await prisma.history.create({
