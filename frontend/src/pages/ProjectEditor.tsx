@@ -17,7 +17,7 @@ import Toolbar from '../components/Toolbar';
 import EntryRow from '../components/EntryRow';
 import Pagination from '../components/Pagination';
 import ProgressBar from '../components/ProgressBar';
-import { hasValidationIssues } from '../utils/validation';
+import { hasValidationIssues, autoFixTranslation } from '../utils/validation';
 
 export default function ProjectEditor() {
   const { id } = useParams<{ id: string }>();
@@ -166,6 +166,17 @@ export default function ProjectEditor() {
     }
   };
 
+  const handleAutoFix = async (entryId: string) => {
+    const entry = entries.find((e) => e.id === entryId);
+    if (!entry || !entry.msgstr[0]) return;
+
+    const fixed = autoFixTranslation(entry.msgid, entry.msgstr[0]);
+    if (fixed !== entry.msgstr[0]) {
+      await handleUpdateEntry(entryId, [fixed]);
+      toast.success('Formatting fixed');
+    }
+  };
+
   const handleTranslateSelected = async () => {
     if (selectedEntries.size === 0) return;
 
@@ -307,6 +318,7 @@ export default function ProjectEditor() {
                 onUpdate={(msgstr) => handleUpdateEntry(entry.id, msgstr)}
                 onTranslate={() => handleTranslateSingle(entry.id)}
                 onUndo={() => handleUndo(entry.id)}
+                onAutoFix={() => handleAutoFix(entry.id)}
                 isTranslating={translatingEntries.has(entry.id)}
                 isUndoing={undoingEntries.has(entry.id)}
               />

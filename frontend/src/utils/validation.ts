@@ -162,3 +162,84 @@ export function validateTranslation(original: string, translation: string): Vali
 export function hasValidationIssues(original: string, translation: string): boolean {
   return validateTranslation(original, translation).length > 0;
 }
+
+// Auto-fix common formatting issues
+export function autoFixTranslation(original: string, translation: string): string {
+  if (!original || !translation) return translation;
+
+  let fixed = translation;
+
+  // Fix capitalization
+  const originalFirstChar = original.charAt(0);
+  const translationFirstChar = fixed.charAt(0);
+
+  const originalIsUpper = originalFirstChar === originalFirstChar.toUpperCase() &&
+                          originalFirstChar !== originalFirstChar.toLowerCase();
+  const originalIsLower = originalFirstChar === originalFirstChar.toLowerCase() &&
+                          originalFirstChar !== originalFirstChar.toUpperCase();
+
+  const translationIsUpper = translationFirstChar === translationFirstChar.toUpperCase() &&
+                             translationFirstChar !== translationFirstChar.toLowerCase();
+  const translationIsLower = translationFirstChar === translationFirstChar.toLowerCase() &&
+                             translationFirstChar !== translationFirstChar.toUpperCase();
+
+  if (originalIsUpper && translationIsLower) {
+    fixed = fixed.charAt(0).toUpperCase() + fixed.slice(1);
+  } else if (originalIsLower && translationIsUpper) {
+    fixed = fixed.charAt(0).toLowerCase() + fixed.slice(1);
+  }
+
+  // Fix whitespace (leading/trailing spaces)
+  const originalLeadingSpace = original.startsWith(' ');
+  const originalTrailingSpace = original.endsWith(' ');
+
+  // Remove existing leading/trailing spaces first to normalize
+  fixed = fixed.trim();
+
+  // Add back spaces as needed
+  if (originalLeadingSpace) {
+    fixed = ' ' + fixed;
+  }
+  if (originalTrailingSpace) {
+    fixed = fixed + ' ';
+  }
+
+  // Fix punctuation
+  const punctuationMarks = ['.', '!', '?', ':', ';', ',', '...', '。', '！', '？'];
+  const originalTrimmed = original.trim();
+  const fixedTrimmed = fixed.trim();
+
+  const originalEnding = punctuationMarks.find(p => originalTrimmed.endsWith(p));
+  const translationEnding = punctuationMarks.find(p => fixedTrimmed.endsWith(p));
+
+  // Original has punctuation but translation doesn't - add it
+  if (originalEnding && !translationEnding) {
+    if (originalTrailingSpace) {
+      // Insert before trailing space
+      fixed = fixed.trimEnd() + originalEnding + ' ';
+    } else {
+      fixed = fixed + originalEnding;
+    }
+  }
+
+  // Translation has punctuation but original doesn't - remove it
+  if (!originalEnding && translationEnding) {
+    if (originalTrailingSpace) {
+      fixed = fixed.trimEnd().slice(0, -translationEnding.length) + ' ';
+    } else {
+      fixed = fixed.trimEnd().slice(0, -translationEnding.length);
+    }
+  }
+
+  return fixed;
+}
+
+// Check if auto-fix can help (excludes placeholder issues which can't be auto-fixed)
+export function canAutoFix(original: string, translation: string): boolean {
+  const issues = validateTranslation(original, translation);
+  return issues.some(issue =>
+    issue.type === 'capitalization' ||
+    issue.type === 'punctuation' ||
+    issue.type === 'whitespace'
+  );
+}

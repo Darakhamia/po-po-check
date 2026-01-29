@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Languages, Check, X, AlertCircle, AlertTriangle, Undo2 } from 'lucide-react';
+import { Languages, Check, X, AlertCircle, AlertTriangle, Undo2, Wand2 } from 'lucide-react';
 import { Entry } from '../services/api';
-import { validateTranslation } from '../utils/validation';
+import { validateTranslation, canAutoFix } from '../utils/validation';
 
 interface EntryRowProps {
   entry: Entry;
@@ -10,6 +10,7 @@ interface EntryRowProps {
   onUpdate: (msgstr: string[]) => void;
   onTranslate: () => void;
   onUndo: () => void;
+  onAutoFix: () => void;
   isTranslating?: boolean;
   isUndoing?: boolean;
 }
@@ -21,6 +22,7 @@ export default function EntryRow({
   onUpdate,
   onTranslate,
   onUndo,
+  onAutoFix,
   isTranslating,
   isUndoing,
 }: EntryRowProps) {
@@ -32,6 +34,12 @@ export default function EntryRow({
   const issues = useMemo(() => {
     if (!entry.isTranslated || !entry.msgstr[0]) return [];
     return validateTranslation(entry.msgid, entry.msgstr[0]);
+  }, [entry.msgid, entry.msgstr, entry.isTranslated]);
+
+  // Check if auto-fix is available
+  const canFix = useMemo(() => {
+    if (!entry.isTranslated || !entry.msgstr[0]) return false;
+    return canAutoFix(entry.msgid, entry.msgstr[0]);
   }, [entry.msgid, entry.msgstr, entry.isTranslated]);
 
   useEffect(() => {
@@ -186,8 +194,8 @@ export default function EntryRow({
         </div>
       </td>
 
-      <td className="px-4 py-3 w-32">
-        <div className="flex items-center gap-2">
+      <td className="px-4 py-3 w-40">
+        <div className="flex flex-wrap items-center gap-1">
           <button
             onClick={onTranslate}
             disabled={isTranslating}
@@ -197,6 +205,16 @@ export default function EntryRow({
             <Languages className="w-3 h-3" />
             {isTranslating ? '...' : 'AI'}
           </button>
+          {canFix && (
+            <button
+              onClick={onAutoFix}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100"
+              title="Auto-fix formatting issues"
+            >
+              <Wand2 className="w-3 h-3" />
+              Fix
+            </button>
+          )}
           <button
             onClick={onUndo}
             disabled={isUndoing || !entry.isTranslated}
