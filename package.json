@@ -12,7 +12,7 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "npm run build --workspaces",
-    "start": "node backend/dist/index.js",
+    "start": "node_modules/.bin/prisma migrate deploy --schema=backend/prisma/schema.prisma && node backend/dist/index.js",
     "install:all": "npm install --workspaces"
   }
 }
