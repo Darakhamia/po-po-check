@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fileUpload from 'express-fileupload';
 import dotenv from 'dotenv';
+import path from 'path';
 import { clerkMiddleware, requireAuth, extractUserId } from './middleware/auth';
 import { projectRoutes } from './routes/projects';
 import { entryRoutes } from './routes/entries';
@@ -37,6 +38,13 @@ app.use('/api/translate', requireAuth(), extractUserId, translateRoutes);
 app.use('/api/settings', requireAuth(), extractUserId, settingsRoutes);
 
 app.use(errorHandler);
+
+// Serve frontend static files
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 async function startServer() {
   try {
